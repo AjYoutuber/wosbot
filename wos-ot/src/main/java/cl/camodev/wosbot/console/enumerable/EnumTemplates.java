@@ -137,6 +137,7 @@ public enum EnumTemplates {
     RALLY_HOLD_BUTTON("/templates/rally/holdButton.png"),
 
 	TRAINING_TROOP_PROMOTE("/templates/training/troopPromote.png"),
+    TRAINING_TROOP_LOCKED("/templates/training/troopLocked.png"),
 
     MARCHES_AREA_RECALL_BUTTON("/templates/marches/recallButton.png"),
     MARCHES_AREA_SPEEDUP_BUTTON("/templates/marches/speedupButton.png"),
@@ -258,6 +259,7 @@ public enum EnumTemplates {
 	INTEL_AGNES("/templates/experts/intelAgnes.png"),
 	
 	DEPLOY_BUTTON("/templates/intel/deploy.png"),
+	DEPLOY_CONFIRMATION_DIALOG("/templates/intel/deployConfirmationDialog.png"),
 	
 	// Grayscale templates for B&W matching
 	INTEL_BEAST_GRAYSCALE("/templates/intel/beastGrayscale.png"),
@@ -452,7 +454,18 @@ public enum EnumTemplates {
 	CHIEF_ORDER_RUSH_JOB("/templates/chieforder/chiefOrderRushJob.png"),
 	CHIEF_ORDER_URGENT_MOBILISATION("/templates/chieforder/chiefOrderUrgentMobilisation.png"),
 	CHIEF_ORDER_PRODUCTIVITY_DAY("/templates/chieforder/chiefOrderProductivityDay.png"),
-	CHIEF_ORDER_ENACT_BUTTON("/templates/chieforder/chiefOrderEnactButton.png");
+	CHIEF_ORDER_ENACT_BUTTON("/templates/chieforder/chiefOrderEnactButton.png"),
+	
+    // ========================================================================
+    // CHARACTER PROFILE AND SETTINGS
+    // ========================================================================
+	GAME_PROFILE_SETTINGS_BUTTON("/templates/profile/settingsButton.png"),  // Settings button in profile menu (PLACEHOLDER - replace with actual template)
+	GAME_PROFILE_SETTINGS_SWITCH_CHARACTER_BUTTON("/templates/profile/settings/switchCharacterButton.png"),  // Characters button in settings menu (PLACEHOLDER - replace with actual template)
+	GAME_PROFILE_SETTINGS_CHARACTER_FURNACE_LEVEL_ACTIVE("/templates/profile/settings/switchcharacter/furnaceLevelActive.png"),  // Furnace Level icon template for finding characters (PLACEHOLDER - replace with actual template)
+	GAME_PROFILE_SETTINGS_CHARACTER_FURNACE_LEVEL_INACTIVE("/templates/profile/settings/switchcharacter/furnaceLevelInactive.png"),  // Furnace Level icon template for finding characters (PLACEHOLDER - replace with actual template)
+	GAME_PROFILE_SETTINGS_CHARACTER_ACTIVE_CHECKMARK("/templates/profile/settings/switchcharacter/activeCharacterCheckMark.png"),  // Green checkmark icon indicating active character (PLACEHOLDER - replace with actual template)
+	GAME_PROFILE_SETTINGS_SWITCH_CHARACTER_CONFIRM_BUTTON("/templates/profile/settings/switchcharacter/confirmButton.png"),  // Confirm button in character switch confirmation dialog (PLACEHOLDER - replace with actual template)
+	GAME_PROFILE_SETTINGS_SWITCH_CHARACTER_CANCEL_BUTTON("/templates/profile/settings/switchcharacter/cancelButton.png");  // Cancel button in character switch confirmation dialog (PLACEHOLDER - replace with actual template)
 
 	// @formatter:on
 	private final String template;

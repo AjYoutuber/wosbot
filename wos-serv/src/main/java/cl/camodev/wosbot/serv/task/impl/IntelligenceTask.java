@@ -35,7 +35,7 @@ import net.sourceforge.tess4j.TesseractException;
 public class IntelligenceTask extends DelayedTask {
 
 	// Constants
-	private static final int MIN_STAMINA_REQUIRED = 30;
+	private static final int MIN_STAMINA_REQUIRED = 12;
 	private static final int SURVIVOR_STAMINA_COST = 12;
 	private static final int JOURNEY_STAMINA_COST = 10;
 
@@ -91,7 +91,7 @@ public class IntelligenceTask extends DelayedTask {
 
 		if (!autoJoinDisabledForIntel && isAutoJoinTaskEnabled && autoJoinTask.isScheduled()) {
 			logInfo("Auto-join is enabled and scheduled, proceeding to disable it.");
-			autoJoinDisabledForIntel = disableAutoJoin();
+			autoJoinDisabledForIntel = allianceHelper.disableAutoJoin();
 			if (!autoJoinDisabledForIntel)
 				logDebug("Failed to disable auto-join, proceeding anyway.");
 		}
@@ -109,7 +109,7 @@ public class IntelligenceTask extends DelayedTask {
 			beastMarchSent = false;
 
 			// Return to world screen for march checks
-			ensureCorrectScreenLocation(EnumStartLocation.WORLD);
+			navigationHelper.ensureCorrectScreenLocation(EnumStartLocation.WORLD);
 
 			// Check march availability once
 			MarchesAvailable marchesAvailable = checkMarchAvailability();
@@ -133,7 +133,7 @@ public class IntelligenceTask extends DelayedTask {
 
 			// Process survivor camps
 			if (survivorCampsEnabled) {
-				ensureOnIntelScreen();
+				intelScreenHelper.ensureOnIntelScreen();
 				logInfo("Searching for survivor camps using grayscale matching.");
 				EnumTemplates survivorTemplate = fcEra ? EnumTemplates.INTEL_SURVIVOR_GRAYSCALE_FC
 						: EnumTemplates.INTEL_SURVIVOR_GRAYSCALE;
@@ -145,7 +145,7 @@ public class IntelligenceTask extends DelayedTask {
 
 			// Process explorations
 			if (explorationsEnabled) {
-				ensureOnIntelScreen();
+				intelScreenHelper.ensureOnIntelScreen();
 				logInfo("Searching for explorations using grayscale matching.");
 				EnumTemplates journeyTemplate = fcEra ? EnumTemplates.INTEL_JOURNEY_GRAYSCALE_FC
 						: EnumTemplates.INTEL_JOURNEY_GRAYSCALE;
@@ -191,7 +191,7 @@ public class IntelligenceTask extends DelayedTask {
 		if (useSmartProcessing) {
 			return getMarchesAvailable();
 		} else {
-			boolean available = checkMarchesAvailable();
+			boolean available = marchHelper.checkMarchesAvailable();
 			return new MarchesAvailable(available, LocalDateTime.now());
 		}
 	}
@@ -232,7 +232,7 @@ public class IntelligenceTask extends DelayedTask {
 	 * Claim all completed missions
 	 */
 	private void claimCompletedMissions() {
-		ensureOnIntelScreen();
+		intelScreenHelper.ensureOnIntelScreen();
 		logInfo("Searching for completed missions to claim.");
 
 		for (int i = 0; i < 2; i++) {
@@ -261,7 +261,7 @@ public class IntelligenceTask extends DelayedTask {
 	 * Process all beast intel (fire beasts and regular beasts)
 	 */
 	private boolean processBeastIntel() {
-		ensureOnIntelScreen();
+		intelScreenHelper.ensureOnIntelScreen();
 		boolean beastFound = false;
 
 		// Search for fire beasts if enabled
@@ -521,7 +521,7 @@ public class IntelligenceTask extends DelayedTask {
 
 		// Select flag if needed
 		if (useFlag) {
-			selectFlag(flagNumber);
+			marchHelper.selectFlag(flagNumber);
 		}
 
 		// Equalize troops
@@ -533,17 +533,10 @@ public class IntelligenceTask extends DelayedTask {
 		}
 
 		// Parse travel time
-		long travelTimeSeconds = 0;
-		try {
-			travelTimeSeconds = parseTravelTime();
-			logInfo("Successfully parsed travel time: " + travelTimeSeconds + "s");
-		} catch (Exception e) {
-			logError("Error parsing travel time: " + e.getMessage());
-		}
+		long travelTimeSeconds = staminaHelper.parseTravelTime();;
 
 		// Parse stamina cost
-		Integer spentStamina = getSpentStamina();
-		logDebug("Spent stamina read: " + spentStamina);
+		Integer spentStamina = staminaHelper.getSpentStamina();
 
 		// Deploy march
 		DTOImageSearchResult deploy = templateSearchHelper.searchTemplate(EnumTemplates.DEPLOY_BUTTON, SearchConfigConstants.SINGLE_WITH_RETRIES);
@@ -555,7 +548,17 @@ public class IntelligenceTask extends DelayedTask {
 		}
 
 		tapPoint(deploy.getPoint());
-		sleepTask(2000);
+		sleepTask(1000);
+
+		// Check for deployment confirmation dialog (troop imbalance)
+		DTOImageSearchResult confirmDialog = templateSearchHelper.searchTemplate(EnumTemplates.DEPLOY_CONFIRMATION_DIALOG, SearchConfigConstants.SINGLE_WITH_RETRIES);
+		if (confirmDialog.isFound()) {
+			logInfo("Deployment confirmation dialog detected (troop imbalance). Confirming deployment.");
+			tapPoint(new DTOPoint(211, 713));
+			sleepTask(300);
+			tapPoint(new DTOPoint(509, 789));
+			sleepTask(300);
+		}
 
 		// Verify deployment
 		deploy = templateSearchHelper.searchTemplate(EnumTemplates.DEPLOY_BUTTON, SearchConfigConstants.SINGLE_WITH_RETRIES);
@@ -571,7 +574,7 @@ public class IntelligenceTask extends DelayedTask {
 		beastMarchSent = true;
 
 		// Update stamina
-		subtractStamina(spentStamina, false); // false = not rally, use 10 stamina default
+		staminaHelper.subtractStamina(spentStamina, false); // false = not rally, use 10 stamina default
 
 		// Reschedule for march return
 		if (travelTimeSeconds <= 0) {
@@ -592,7 +595,7 @@ public class IntelligenceTask extends DelayedTask {
 
 	private MarchesAvailable getMarchesAvailable() {
 		// Open active marches panel
-		openLeftMenuCitySection(false);
+		marchHelper.openLeftMenuCitySection(false);
 
 		DTOTesseractSettings settings = DTOTesseractSettings.builder()
 				.setAllowedChars("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
