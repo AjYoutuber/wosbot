@@ -35,7 +35,7 @@ import net.sourceforge.tess4j.TesseractException;
 public class IntelligenceTask extends DelayedTask {
 
 	// Constants
-	private static final int MIN_STAMINA_REQUIRED = 30;
+	private static final int MIN_STAMINA_REQUIRED = 12;
 	private static final int SURVIVOR_STAMINA_COST = 12;
 	private static final int JOURNEY_STAMINA_COST = 10;
 

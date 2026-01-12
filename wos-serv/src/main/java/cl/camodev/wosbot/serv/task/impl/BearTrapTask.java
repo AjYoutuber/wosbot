@@ -1,25 +1,10 @@
 package cl.camodev.wosbot.serv.task.impl;
 
-import cl.camodev.utiles.UtilRally;
-import cl.camodev.utiles.number.NumberConverters;
-import cl.camodev.utiles.number.NumberValidators;
-import cl.camodev.utiles.ocr.TextRecognitionRetrier;
-import cl.camodev.utiles.time.TimeConverters;
-import cl.camodev.utiles.time.TimeValidators;
-import cl.camodev.wosbot.console.enumerable.EnumConfigurationKey;
-import cl.camodev.wosbot.console.enumerable.TpDailyTaskEnum;
-import cl.camodev.wosbot.ot.DTOImageSearchResult;
-import cl.camodev.wosbot.ot.DTOPoint;
-import cl.camodev.wosbot.ot.DTOProfiles;
-import cl.camodev.wosbot.ot.DTOTesseractSettings;
-import cl.camodev.wosbot.serv.impl.ServConfig;
-import cl.camodev.wosbot.serv.ocr.BotTextRecognitionProvider;
-import cl.camodev.wosbot.serv.task.*;
-import cl.camodev.wosbot.serv.task.helper.BearTrapHelper;
-import cl.camodev.wosbot.serv.task.helper.TemplateSearchHelper.SearchConfig;
-
-import java.awt.*;
-import java.time.*;
+import java.awt.Color;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -30,8 +15,45 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.*;
-import static cl.camodev.wosbot.console.enumerable.EnumTemplates.*;
+import cl.camodev.utiles.UtilRally;
+import cl.camodev.utiles.number.NumberConverters;
+import cl.camodev.utiles.number.NumberValidators;
+import cl.camodev.utiles.ocr.TextRecognitionRetrier;
+import cl.camodev.utiles.time.TimeConverters;
+import cl.camodev.utiles.time.TimeValidators;
+import cl.camodev.wosbot.console.enumerable.EnumConfigurationKey;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_ACTIVE_PETS_BOOL;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_CALL_RALLY_BOOL;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_JOIN_FLAG_INT;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_JOIN_RALLY_BOOL;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_NUMBER_INT;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_PREPARATION_TIME_INT;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_RALLY_FLAG_INT;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_RECALL_TROOPS_BOOL;
+import static cl.camodev.wosbot.console.enumerable.EnumConfigurationKey.BEAR_TRAP_SCHEDULE_DATETIME_STRING;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.ALLIANCE_TERRITORY_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.ALLIANCE_WAR_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.BEAR_DEPLOY_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.BEAR_JOIN_PLUS_ICON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.BEAR_RALLY_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.GAME_HOME_PETS;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.GAME_HOME_WAR;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.MARCHES_AREA_RECALL_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.MARCHES_AREA_SPEEDUP_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.MARCHES_AREA_VIEW_BUTTON;
+import static cl.camodev.wosbot.console.enumerable.EnumTemplates.RALLY_HOLD_BUTTON;
+import cl.camodev.wosbot.console.enumerable.TpDailyTaskEnum;
+import cl.camodev.wosbot.ot.DTOImageSearchResult;
+import cl.camodev.wosbot.ot.DTOPoint;
+import cl.camodev.wosbot.ot.DTOProfiles;
+import cl.camodev.wosbot.ot.DTOTesseractSettings;
+import cl.camodev.wosbot.serv.impl.ServConfig;
+import cl.camodev.wosbot.serv.ocr.BotTextRecognitionProvider;
+import cl.camodev.wosbot.serv.task.DelayedTask;
+import cl.camodev.wosbot.serv.task.EnumStartLocation;
+import cl.camodev.wosbot.serv.task.TaskQueue;
+import cl.camodev.wosbot.serv.task.helper.BearTrapHelper;
+import cl.camodev.wosbot.serv.task.helper.TemplateSearchHelper.SearchConfig;
 
 /**
  * Bear Trap Task - Manages automated participation in the Bear Trap event.
@@ -807,44 +829,93 @@ public class BearTrapTask extends DelayedTask {
      * @param freeMarches number of free march slots available (unused but logged)
      */
     private void handleJoinRallies(int freeMarches) {
-        DTOImageSearchResult plusIcon = templateSearchHelper.searchTemplate(
-                BEAR_JOIN_PLUS_ICON,
-                SearchConfig.builder()
-                        .withThreshold(90)
-                        .withMaxAttempts(2)
-                        .build());
+        final int MAX_LOOPS = 5;
+        int loops = 0;
 
-        if (!plusIcon.isFound()) {
-            logWarning("No joinable rallies found (plus icon not present)");
+        // Ensure we always return to a known screen on exit or error
+        try {
+            // Assumes caller has already navigated to the war section.
+            for (; loops < MAX_LOOPS && freeMarches > 0; loops++) {
+            DTOImageSearchResult plusIcon = templateSearchHelper.searchTemplate(
+                    BEAR_JOIN_PLUS_ICON,
+                    SearchConfig.builder()
+                            .withThreshold(90)
+                            .withMaxAttempts(2)
+                            .build());
+
+            if (!plusIcon.isFound()) {
+                logWarning("No joinable rallies found (plus icon not present) on loop " + (loops + 1));
+                // Try clicking flags 5 then 1 to refresh listings while staying in war section
+                try {
+                    DTOPoint flag5 = UtilRally.getMarchFlagPoint(5);
+                    DTOPoint flag1 = UtilRally.getMarchFlagPoint(1);
+                    tapRandomPoint(flag5, flag5, 1, 100);
+                    sleepTask(300);
+                    tapRandomPoint(flag1, flag1, 1, 100);
+                    sleepTask(300);
+                } catch (Exception e) {
+                    logWarning("Error tapping flags 5/1 to refresh war list: " + e.getMessage());
+                }
+
+                // Re-check for plus icon once after tapping flags; if still not found, continue loop
+                plusIcon = templateSearchHelper.searchTemplate(
+                        BEAR_JOIN_PLUS_ICON,
+                        SearchConfig.builder()
+                                .withThreshold(90)
+                                .withMaxAttempts(2)
+                                .build());
+
+                if (!plusIcon.isFound()) {
+                    logDebug("Plus icon still not found after tapping flags on loop " + (loops + 1));
+                    // continue to next iteration (will stay in war section)
+                    continue;
+                }
+            }
+
+            int selectedFlag = getNextJoinFlag();
+            logInfo("Joining rally with flag #" + selectedFlag + " (rotation: " + joinFlags + ") - loop " + (loops + 1));
+
+            tapRandomPoint(plusIcon.getPoint(), plusIcon.getPoint(), 1, 100);
+            sleepTask(300); // Wait for flag selection screen
+
+            DTOPoint flagPoint = UtilRally.getMarchFlagPoint(selectedFlag);
+            tapRandomPoint(flagPoint, flagPoint, 1, 0);
+            sleepTask(300); // Wait for deploy button
+
+            DTOImageSearchResult deploy = templateSearchHelper.searchTemplate(
+                    BEAR_DEPLOY_BUTTON,
+                    SearchConfig.builder()
+                            .withThreshold(90)
+                            .withMaxAttempts(TEMPLATE_SEARCH_RETRIES)
+                            .build());
+
+            if (!deploy.isFound()) {
+                logWarning("Deploy button not found after selecting flag on loop " + (loops + 1));
+            } else {
+                tapPoint(deploy.getPoint());
+                sleepTask(500); // Wait for deployment
+                freeMarches = Math.max(0, freeMarches - 1);
+            }
+
+            // After each loop end, click Flag 5 then Flag 1 (stays in war section)
+            try {
+                DTOPoint flag5 = UtilRally.getMarchFlagPoint(5);
+                DTOPoint flag1 = UtilRally.getMarchFlagPoint(1);
+                tapRandomPoint(flag5, flag5, 1, 100);
+                sleepTask(300);
+                tapRandomPoint(flag1, flag1, 1, 100);
+                sleepTask(300);
+            } catch (Exception e) {
+                logWarning("Error tapping flags 5/1 after loop " + (loops + 1) + ": " + e.getMessage());
+            }
+
+            // After tapping flags, remain in the war section and continue looping
+        }
+
+            logInfo("Completed join-loop iterations: " + loops);
+        } finally {
             navigationHelper.ensureCorrectScreenLocation(EnumStartLocation.ANY);
-            return;
         }
-
-        int selectedFlag = getNextJoinFlag();
-        logInfo("Joining rally with flag #" + selectedFlag + " (rotation: " + joinFlags + ")");
-
-        tapRandomPoint(plusIcon.getPoint(), plusIcon.getPoint(), 1, 100);
-        sleepTask(300); // Wait for flag selection screen
-
-        DTOPoint flagPoint = UtilRally.getMarchFlagPoint(selectedFlag);
-        tapRandomPoint(flagPoint, flagPoint, 1, 0);
-        sleepTask(300); // Wait for deploy button
-
-        DTOImageSearchResult deploy = templateSearchHelper.searchTemplate(
-                BEAR_DEPLOY_BUTTON,
-                SearchConfig.builder()
-                        .withThreshold(90)
-                        .withMaxAttempts(TEMPLATE_SEARCH_RETRIES)
-                        .build());
-
-        if (!deploy.isFound()) {
-            logWarning("Deploy button not found after selecting flag.");
-        } else {
-            tapPoint(deploy.getPoint());
-            sleepTask(500); // Wait for deployment
-        }
-
-        navigationHelper.ensureCorrectScreenLocation(EnumStartLocation.ANY);
     }
 
     /**
@@ -899,6 +970,7 @@ public class BearTrapTask extends DelayedTask {
 
         tapRandomPoint(BEAR_CENTER_POINT, BEAR_CENTER_POINT, 1, 200);
         sleepTask(500); // Wait for bear selection
+        sleepTask(1000); // Additional delay between rally steps
 
         DTOImageSearchResult rallyButton = templateSearchHelper.searchTemplate(
                 BEAR_RALLY_BUTTON,
@@ -916,6 +988,7 @@ public class BearTrapTask extends DelayedTask {
         logInfo("Opening rally menu...");
         tapRandomPoint(rallyButton.getPoint(), rallyButton.getPoint(), 1, 200);
         sleepTask(500); // Wait for rally menu
+        sleepTask(1000); // Additional delay between rally steps
 
         DTOImageSearchResult holdRallyButton = templateSearchHelper.searchTemplate(
                 RALLY_HOLD_BUTTON,
@@ -932,15 +1005,18 @@ public class BearTrapTask extends DelayedTask {
 
         tapRandomPoint(holdRallyButton.getPoint(), holdRallyButton.getPoint(), 1, 200);
         sleepTask(300); // Wait for flag selection
+        sleepTask(1000); // Additional delay between rally steps
 
         DTOPoint flagPoint = UtilRally.getMarchFlagPoint(ownRallyFlag);
         tapRandomPoint(flagPoint, flagPoint, 1, 200);
         sleepTask(300); // Wait for march time to appear
+        sleepTask(1000); // Additional delay between rally steps
 
         long marchSeconds = readMarchTime();
 
         if (marchSeconds == 0) {
             logError("Could not read march time from screen");
+            navigationHelper.ensureCorrectScreenLocation(EnumStartLocation.ANY);
             ownRallyActive.set(false);
             return 0;
         }
@@ -960,6 +1036,7 @@ public class BearTrapTask extends DelayedTask {
 
         tapPoint(deploy.getPoint());
         sleepTask(500); // Wait for deployment
+        sleepTask(1000); // Additional delay between rally steps
 
         logInfo("Rally deployed successfully. March time: " + marchSeconds + " seconds");
         return marchSeconds;

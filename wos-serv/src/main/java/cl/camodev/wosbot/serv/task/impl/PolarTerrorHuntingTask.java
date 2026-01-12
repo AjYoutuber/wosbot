@@ -1,5 +1,8 @@
 package cl.camodev.wosbot.serv.task.impl;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
 import cl.camodev.utiles.UtilTime;
 import cl.camodev.wosbot.almac.entity.DailyTask;
 import cl.camodev.wosbot.almac.repo.DailyTaskRepository;
@@ -15,12 +18,9 @@ import cl.camodev.wosbot.serv.task.DelayedTask;
 import cl.camodev.wosbot.serv.task.EnumStartLocation;
 import cl.camodev.wosbot.serv.task.constants.SearchConfigConstants;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-
 public class PolarTerrorHuntingTask extends DelayedTask {
-    private final int refreshStaminaLevel = 180;
-    private final int minStaminaLevel = 100;
+    private final int refreshStaminaLevel = 100;
+    private final int minStaminaLevel = 19;
     private final IDailyTaskRepository iDailyTaskRepository = DailyTaskRepository.getRepository();
     private final ServTaskManager servTaskManager = ServTaskManager.getInstance();
     private static final int MAX_POLAR_LEVEL = 8;
